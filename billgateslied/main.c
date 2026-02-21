@@ -4,39 +4,31 @@
 #include "io.h"
 #include "mem.h"
 
-NTSTATUS DriverEntry(PDRIVER_OBJECT pDriver, PUNICODE_STRING pRegistryPath) {
-	// Declare pRegistry Path unused
-	UNREFERENCED_PARAMETER(pRegistryPath);
-	
-	//Im testing the driver using kdmapper, kdmapper doesnt pass valid pDriver and pRegistryPath
-	UNREFERENCED_PARAMETER(pDriver);
-
-	DebugMessage("DriverEntry called\n");
+static BOOLEAN driver_demo() {
 
 	//test copy virtual memory from this process to this process
+	PVOID pool_a = ExAllocatePool2(POOL_FLAG_NON_PAGED, sizeof(int), 'tag1');
+	PVOID pool_b = ExAllocatePool2(POOL_FLAG_NON_PAGED, sizeof(int), 'tag2');
 
-	PVOID poolA = ExAllocatePool2(POOL_FLAG_NON_PAGED, sizeof(int), 'Tag1');
-	PVOID poolB = ExAllocatePool2(POOL_FLAG_NON_PAGED, sizeof(int), 'Tag2');
-	
-	if (!poolA || !poolB) 
-		return STATUS_NO_MEMORY;
-	
-	RtlZeroMemory(poolA, sizeof(int));
-	RtlZeroMemory(poolB, sizeof(int));
+	if (!pool_a || !pool_b)
+		return FALSE;
 
-	// write 123 to poolA
-	*(int*)poolA = 123;
+	RtlZeroMemory(pool_a, sizeof(int));
+	RtlZeroMemory(pool_b, sizeof(int));
 
-	SIZE_T bytesCopied = 0;
+	// write 123 to pool_a
+	*(int*)pool_a = 123;
+
+	SIZE_T size = sizeof(int);
 
 	__try {
-		NTSTATUS result = write_process_memory(PsGetCurrentProcessId(), (PULONG)poolA, poolB, sizeof(int));
+		NTSTATUS result = write_process_memory(PsGetCurrentProcessId(), pool_a, pool_b, size);
 
 		if (!NT_SUCCESS(result)) {
 			DebugMessage("write_process_memory failed with status: 0x%X\n", result);
 		}
 		else {
-			DebugMessage("Copied %d bytes from %p to %p, value: %d\n", (int)bytesCopied, poolA, poolB, *(int*)poolB);
+			DebugMessage("Copied %d bytes from %p to %p, value: %d\n", (int)size, pool_a, pool_b, *(int*)pool_b);
 		}
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER) {
@@ -45,19 +37,32 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT pDriver, PUNICODE_STRING pRegistryPath) {
 	}
 
 	//Free the allocated memory
-	ExFreePoolWithTag(poolA, 'Tag1');
-	ExFreePoolWithTag(poolB, 'Tag2');
-	
+	ExFreePoolWithTag(pool_a, 'tag1');
+	ExFreePoolWithTag(pool_b, 'tag2');
+
+	return TRUE;
+}
+
+NTSTATUS DriverEntry(PDRIVER_OBJECT p_driver, PUNICODE_STRING p_registry_path) {
+	// Declare pRegistry Path unused
+	UNREFERENCED_PARAMETER(p_registry_path);
+
 	//Im testing the driver using kdmapper, kdmapper doesnt pass valid pDriver and pRegistryPath
-	//
-	//pDriver->DriverUnload = UnloadDriver;
+	UNREFERENCED_PARAMETER(p_driver);
+
+	DebugMessage("DriverEntry called\n");
+
+	if (!driver_demo())
+		return STATUS_NO_MEMORY;
+
+	//p_driver->DriverUnload = UnloadDriver;
 	
 	return STATUS_SUCCESS;
 }
 
-NTSTATUS UnloadDriver(PDRIVER_OBJECT pDriver) {
-	UNREFERENCED_PARAMETER(pDriver);
-	
+NTSTATUS UnloadDriver(PDRIVER_OBJECT p_driver) {
+	UNREFERENCED_PARAMETER(p_driver);
+
 	DebugMessage("UnloadDriver called\n");
 
 	return STATUS_SUCCESS;

@@ -1,11 +1,12 @@
 #include "pch.h"
 #include "mem.h"
 #include "defs.h"
+#include "msg.h"
 
-NTSTATUS read_process_memory(HANDLE pid, PULONG address, PVOID buffer, SIZE_T size)
+NTSTATUS read_process_memory(HANDLE pid, PVOID source, PVOID dest, SIZE_T size)
 {
 	// Validate input parameters
-    if (!pid || !address || !buffer || size < 1)
+    if (!pid || !source || !dest || size < 1)
         return STATUS_INVALID_PARAMETER;
 
 	// Look up the target process by its PID, easy for usermode
@@ -15,11 +16,6 @@ NTSTATUS read_process_memory(HANDLE pid, PULONG address, PVOID buffer, SIZE_T si
     if (!NT_SUCCESS(status))
         return status;
 
-	if (PsGetProcessExitStatus(process) != STATUS_PENDING) {
-        ObDereferenceObject(process);
-        return STATUS_PROCESS_IS_TERMINATING;
-	}
-
 	// Attach to the target process's address space using KeStackAttachProcess
 	// increments object reference count. Can be detected by advanced anticheat.
     KAPC_STATE apc_state;
@@ -27,7 +23,7 @@ NTSTATUS read_process_memory(HANDLE pid, PULONG address, PVOID buffer, SIZE_T si
 
 	// Use RtlCopyMemory to copy memory from the target process to our buffer
     __try {
-        RtlCopyMemory(buffer, (PVOID)address, size);
+        RtlCopyMemory(dest, source, size);
         status = STATUS_SUCCESS;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
@@ -41,9 +37,9 @@ NTSTATUS read_process_memory(HANDLE pid, PULONG address, PVOID buffer, SIZE_T si
     return status;
 }
 
-NTSTATUS write_process_memory(HANDLE pid, PULONG address, PVOID buffer, SIZE_T size)
+NTSTATUS write_process_memory(HANDLE pid, PVOID source, PVOID dest, SIZE_T size)
 {
-    if (!pid || !address || !buffer || size < 1)
+    if (!pid || !source || !dest || size < 1)
         return STATUS_INVALID_PARAMETER;
 
     PEPROCESS process;
@@ -52,16 +48,11 @@ NTSTATUS write_process_memory(HANDLE pid, PULONG address, PVOID buffer, SIZE_T s
     if (!NT_SUCCESS(status))
         return status;
 
-	if (PsGetProcessExitStatus(process) != STATUS_PENDING) {
-        ObDereferenceObject(process);
-        return STATUS_PROCESS_IS_TERMINATING;
-	}
-
     KAPC_STATE apc_state;
     KeStackAttachProcess(process, &apc_state);
 
     __try {
-        RtlCopyMemory((PVOID)address, buffer, size);
+        RtlCopyMemory(dest, source, size);
         status = STATUS_SUCCESS;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
@@ -74,7 +65,7 @@ NTSTATUS write_process_memory(HANDLE pid, PULONG address, PVOID buffer, SIZE_T s
     return status;
 }
 
-NTSTATUS protect_memory(HANDLE pid, PULONG address, PSIZE_T size, ULONG protect, PULONG oldprotect)
+NTSTATUS protect_memory(HANDLE pid, PVOID address, PSIZE_T size, ULONG protect, PULONG oldprotect)
 {
     if (!address || !size || !oldprotect)
         return STATUS_INVALID_PARAMETER;
@@ -88,16 +79,11 @@ NTSTATUS protect_memory(HANDLE pid, PULONG address, PSIZE_T size, ULONG protect,
     if (!NT_SUCCESS(status))
         return status;
 
-	if (PsGetProcessExitStatus(process) != STATUS_PENDING) {
-        ObDereferenceObject(process);
-        return STATUS_PROCESS_IS_TERMINATING;
-	}
-
     KAPC_STATE apc_state;
     KeStackAttachProcess(process, &apc_state);
 
     __try {
-        PVOID base_address = (PVOID)address;
+        PVOID base_address = address;
         SIZE_T region_size = *size;
         
         // Call from target process context
