@@ -4,13 +4,20 @@
 // This header file contains the declarations/definitions of the functions and structures used in the driver.
 
 // We can use MmCopyVirtualMemory to copy memory between processes in kernel mode
+// Note: MmCopyVirtualMemory calls KeStackAttachProcess internally to attach the current thread to the target process's address space, which allows it to access the memory of the target process directly. 
 // Other functions that can be used to copy memory between processes include:
-// - ZwReadVirtualMemory and ZwWriteVirtualMemory: These functions can be used to read and write memory in a specific process, but they require the caller to have the appropriate permissions and may not work in all cases.
-// - MmMapIoSpace: This function can be used to map physical memory into the virtual address space of the driver, allowing the driver to access the memory directly. However, this function is typically used for accessing hardware resources rather than copying memory between processes.
-// - MmMapLockedPagesSpecifyCache: This function can be used to map locked pages of memory into the virtual address space of the driver, allowing the driver to access the memory directly. However, this function is typically used for accessing memory that has been allocated by the driver rather than copying memory between processes.
-// - RtlCopyMemory: This function can be used to copy memory within the same process, but it cannot be used to copy memory between different processes.
-
+// - ZwReadVirtualMemory and ZwWriteVirtualMemory:
+//      -read and write memory in a specific process
+//         -require the caller to have the appropriate permissions and may not work in all cases.
+// - MmMapIoSpace: 
+//      -map physical memory into the virtual address space of the driver,
+//      allowing the driver to access the memory directly.
+// - MmMapLockedPagesSpecifyCache: 
+//      -map locked pages of memory into the virtual address space of the driver,
+//          then we can access the memory directly through the driver.
+// 
 // This extern declaration allows us to use the undocumented function MmCopyVirtualMemory in our driver
+// Unused in our implementation.
 extern NTSTATUS NTAPI MmCopyVirtualMemory(
 	_In_ PEPROCESS SourceProcess,
 	_In_ CONST VOID* SourceAddress,
