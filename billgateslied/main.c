@@ -25,15 +25,15 @@ static BOOLEAN driver_demo() {
 		NTSTATUS result = write_process_memory(PsGetCurrentProcessId(), pool_a, pool_b, size);
 
 		if (!NT_SUCCESS(result)) {
-			DebugMessage("write_process_memory failed with status: 0x%X\n", result);
+			debug_msg("write_process_memory failed with status: 0x%X\n", result);
 		}
 		else {
-			DebugMessage("Copied %d bytes from %p to %p, value: %d\n", (int)size, pool_a, pool_b, *(int*)pool_b);
+			debug_msg("Copied %d bytes from %p to %p, value: %d\n", (int)size, pool_a, pool_b, *(int*)pool_b);
 		}
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER) {
 		ULONG exceptionCode = GetExceptionCode();
-		DebugMessage("Exception occurred during write_process_memory: 0x%X\n", exceptionCode);
+		debug_msg("Exception occurred during write_process_memory: 0x%X\n", exceptionCode);
 	}
 
 	//Free the allocated memory
@@ -50,7 +50,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT p_driver, PUNICODE_STRING p_registry_path) {
 	//Im testing the driver using kdmapper, kdmapper doesnt pass valid pDriver and pRegistryPath
 	UNREFERENCED_PARAMETER(p_driver);
 
-	DebugMessage("DriverEntry called\n");
+	debug_msg("DriverEntry called\n");
 
 	if (!driver_demo())
 		return STATUS_NO_MEMORY;
@@ -63,7 +63,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT p_driver, PUNICODE_STRING p_registry_path) {
 NTSTATUS UnloadDriver(PDRIVER_OBJECT p_driver) {
 	UNREFERENCED_PARAMETER(p_driver);
 
-	DebugMessage("UnloadDriver called\n");
+	debug_msg("UnloadDriver called\n");
 
 	return STATUS_SUCCESS;
 }
